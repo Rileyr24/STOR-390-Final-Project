@@ -1,0 +1,281 @@
+---
+title: 'STOR 390 Final Project: Accountability in Political Science & Scientific Politics'
+author: "Riley Richardson"
+geometry: margin=2
+output:
+  html_document:
+    theme: cosmo
+    toc: yes
+    toc_float: yes
+---
+```{r, echo=F}
+set.seed(1)
+```
+
+<!-- Opening Quote -->
+<center>
+
+"Isn't that a missile?" "No, I'm just working on the basic principle; nobody [here] works on the weapons."  
+--- MIT biologist Johnathan King recounting a conversation with an engineer about Defense expenditure in academia.^[Chris Knight, "The Two Chomskys: The US Military’s Greatest Enemy Worked in an Institution Saturated with Military Funding. How Did It Shape his Thought?" in *Aeon* (New York: Aeon Media, December, 2023). https://aeon.co/essays/an-anthropologist-studies-the-warring-ideas-of-noam-chomsky]  
+
+</center>
+
+# Introduction
+
+In the era of globalization, we face profound ethical questions every day about the moral obligations of individuals in larger, decentralized systems. Nowhere is this pressure of the unprecedented felt more strongly than in academia. With access to more information and more knowledge than any humans in history, we have the opportunity to help a great number of people. But we also have the capacity to do harm. The engineer quoted above with whom Johnathan King spoke during the Cold War believed that his work at MIT was sufficiently abstract to relieve him of responsibility for the deaths his creation may have enabled. At some level, science is fundamentally based in abstraction --- but at what point is an idea's consequences in practice inseparable from that idea in theory? This analysis will review a paper by Lefteris Jason Anastasopoulos and Jake Ryland Williams that proposes a classification model which, if employed, could constantly and without significant delay process social media data to gauge individual participation in political protests.^[Anastasopoulos LJ, Williams JR (2019) "A scalable machine learning approach for measuring forceful and peaceful forms of political protest participation with social media data." PLoS ONE 14 (3): e0212834. https://doi.org/10.1371/journal.] The mission of these authors is compelling --- they endeavor to provide accurate information about protests, which are so frequently misrepresented in media and news. In particular, they design the algorithm to classify "violent" and "non-violent" actions in an impartial, objective way. They do not, however, sufficiently consider privacy rights or informed consent in their data. I will argue that, when using data that could have significant ramifications for the people it describes, statisticians should seek to embed privacy measures into new systems wherever possible.
+
+# Analysis of Methods
+## Quantifying Political Dissent
+### Theory
+Bayes classification is a form of supervised machine learning that seeks to estimate the probability of event $A$ occuring, given that event $B$ has also occured. It can be represented
+
+$$P(A|B) = \frac{P(B|A)P(A)}{P(B)} $$
+
+In practice, Bayes classification typically involves many variables. The method is easily scalable, however:
+
+$$P(A|B_1, B_2,..., B_n) =\frac{P(B_1, B_2,..., B_n|A) \; P(A)}{P(B_1, B_2,..., B_n)} = \frac{P(B_1|A)\; P(B_2|A)...P(B_n|A) \;P(A)}{P(B_1)\;P(B_2)...P(B_n)} = P(A)\prod_{i=1}^n\frac{P(B_i|A)}{P(B_i)}$$
+
+
+
+Anastasopoulos and Williams utilize text data in their algorithm, so $B_1, B_2,..., B_n$ represent different words present in a given tweet, while $A$ represents one of four classes: "violent," "non-violent," "individual" and "collective." Essentially, the model is trained to associate the presence of some words, $B_1, B_2,..., B_n$, with a given class label $A$ and adjusts that relationship based on the relative prevalence of those characteristics in the data.
+
+The above formulation describes "naïve" Bayes classifiers, so-called because they treat each input variable as independent. With text data, however, words are not independent --- "tear gas" means something much different than "tear" or "gas" separately --- so the authors modify the input space to include multiword expressions as well as individual words. The resulting models are called "adept" Bayes classifiers, but they still function in much the same way.
+
+### Training
+The authors employ a definition of "political participation" proposed by political scientist Jan van Deth. Their classification of tweets is theoretically based on the following five rules:  
+
+1. "Are we dealing with behavior?  
+2. Is the activity voluntary?  
+3. Is the activity done by citizens?  
+4. Is the activity loacated in the sphere of government/state/politics?  
+5. Is the activity targeted at the sphere of government/state/politics?"^[Anastasopoulos LJ, Williams JR (2019), 6]
+
+They define a tweet as signifying political participation^[They provide both a "minimal" and "targeted" definition, but only use the latter in their model, so I'll refer only to the targeted definition] if that tweet satisfies rules 1,2,3 and 5, but not 4, in the above list. They exclude observations fulfilling the fourth criterion to exclude tweets by politicians and other formal political actors. The authors classify a tweet as signifying "forceful" action if said action "immediately inflict[s] physical damage on persons and/or objects" ^[Anastasopoulos & Williams (2019), 6].  Finally, they classify a tweet as signifying "collective" action if it "involves at least two perpetrators of damage" or "results at least in part from coordination among persons." These classification rules are nicely summarized in figure 1.  
+
+<center>
+```{r, echo=FALSE, out.width = "50%"}
+knitr::include_graphics("tree.png")
+```
+
+**Fig. 1** Operationalization of Political Protest Theory^[Anastasopoulos & Williams (2019), 10]  
+
+</center><br>  
+
+The researchers filtered over 600 million geo-tagged tweets for those most likely "to be related to protest activity," specifically analyzing 2014 data from the People's Climate March in New York, protests following the murder Michael Brown in Ferguson, Minnesota, and the Occupy Central movement in Hong Kong.^[Anastasopoulos & Williams (2019), 11]. They then manually classified 10% of the sample using the classification rules outlined in figure 1 and trained four adept Bayes classifiers --- one each for individual forceful protests, individual peaceful protests, collective forceful protests, and collective peaceful protests --- on the text data of those manually-classified tweets. They applied these classifiers to all of the 184,626 tweets and evaluated the model's performance "by performing a tenfold cross-validation on the coded tweets data set."^[Anastasopoulos & Williams (2019), 13].
+
+### Testing
+Figure 2 shows the performance of the proposed classification algorithm when applied to testing data. *Precision* refers to the probability that the algorithm returns a true positive, i.e., the respective classifier correctly identifies the class of a tweet based on its text. *Response* refers to how often the algorithm will "identify a positive result out of a sample of positively classified results."^[Anastasopoulos & Williams (2019), 16] The proposed algorithm does not perform particularly well, especially on "individual forceful" or "collective peaceful" actions. The relatively low precision and recall rates are likely due to the inherent noise in any text data, but especially from sources such as Twitter/X.
+
+```{r, include = FALSE}
+library(tidyverse)
+library(kableExtra)
+```
+
+```{r, echo=FALSE}
+
+dat1 <- c(57.39, 74.08, 66.94, 73.52, 51.92, 71.5, 71.44, 74.54, 80.71)
+
+pre <- matrix(dat1, 3, 3, 
+              dimnames = list(c("Individual", "Collective", "All"),
+                              c("Forceful", "Peaceful", "All")
+              ))
+
+dat2 <- c(41.19, 76.01, 67.54, 67.61, 55.25, 72.2, 68.57, 68.8, 74.42)
+
+rec <- matrix(dat2, 3, 3, 
+              dimnames = list(c("Individual", "Collective", "All"),
+                              c("Forceful", "Peaceful", "All")
+              ))
+
+tbl <- matrix(c(dat1,dat2), 3, 6, dimnames = list(
+  c("Individual", "Collective", "All"),
+  rep(c("Forceful", "Peaceful", "All"),2)
+))
+
+tbl %>% 
+  kbl(caption = "Performance of Adept Bayes Classifiers", align = "c") %>% 
+  kable_classic(bootstrap_options = "condensed", position = "center") %>% 
+  add_header_above(c(" " = 1, "Precision (%)" = 3, "Recall (%)" = 3))
+```
+
+<center>
+**Fig. 2** Precision and Response of Adept Bayes Classification Applied to Testing Data ^[Anastasopoulos & Williams (2019), 16]  
+</center><br>
+
+The researchers additionally identify "clusters" of activity using the geographical data attached to the tweets in an effort to show that tweets classified as "forceful" corresponded to violent pockets of dissent in the protests. As this analysis is not systematized to the same degree as the above performance metrics, however, I will be prioritizing the latter.
+
+## Adding Privacy Measures
+### Simulating Data
+Unfortunately, the authors did not publish the raw data on which their model was trained, so we must use simulated data to estimate the impact of privacy measures. As previously stated, a Bayes classifier calculates $P(A|B_1, B_2,...,B_n)$, the probability that the tweet has some class $A$ based on the words, $B_1, B_2,...,B_n$, within said tweet. Therefore, we can simulate data by assigning each entry in $B_1, B_2,...,B_n$ a discrete value that constructively represents that "word" or *token's* association with, for example, a tweet indicating a "forceful" action.
+
+Anastasopoulos and Williams train four classifiers separately --- one for each classification --- but, for the sake of brevity, I will only consider one. The purpose of this analysis is to determine the impact of privacy measures on the accuracy of a classifer, so the process would be the same for all four. Observations will have 5 tokens, each a value representing the token's association with a class (one could imagine it being any of the four outlined). I will then train a Bayes classifier on these simulated data --- both with and without privacy measures --- to gauge the difference in precision and recall.
+
+For the purposes of this review, I will assume there is a relationship between certain words and the class of a tweet. The 5 tokens for each observation will each be assigned a random integer value between 1 and 4. A constant (1) will then be added to all tokens in observations of a positive class label, guaranteeing that higher values for each $B$ will be associated with a positive class label. To be clear, these values are not meaningful to the paper in question. The purpose of this analysis is not to create a model which rivals these researchers' but rather to evaluate how privacy measures could impact the accuracy of naïve Bayes classification. Figure 3 shows the first several rows of the simulated data, where higher values of tokens ($B_1, B_2,...,B_n$) *on average* correspond to positive class labels.
+
+```{r, echo=FALSE}
+obs <- 10000
+vars <- 5
+
+set.seed(Sys.time())
+Class <- sample(0:1, obs, TRUE)
+
+data <- matrix(sample(1:4, obs*vars, TRUE), obs, vars)
+colnames(data) <- paste0("B",1:vars)
+
+data[Class==1,] <- data[Class==1,] + 1
+
+data.tbl <- cbind(Class, data)
+data.tbl %>% head(10) %>%
+  kbl(caption = "Class and Tokens of Simulated Data", align = "c", digits = 3) %>% 
+  kable_classic(bootstrap_options = "condensed", position = "center")
+```
+
+<center>
+**Fig. 3** First Ten Rows of the Simulated Data.  
+</center><br>  
+
+### Differential Privacy
+*Randomized response differential privacy* is a method by which researchers can respect the privacy rights of their subjects without jeopardizing the integrity of their models. Essentially, while initially coding the training data, the authors of this study could have randomly assigned some portion of the tweets a class like "forceful" or "collective" regardless of the actual data to which it referred. One cannot then know whether incriminating data is accurate in any individual case, but the researchers --- because they would know the probability of a randomized response --- can adjust their conclusions based on the number of expected false class labels.
+
+Using differential privacy, we can approximate the proportion of observations assigned a positive class (either legitimately or randomly), $P(A)$, with the following formula:
+$$P(A) = \theta \hat{P}(A) + (1-\theta)\theta$$
+where $\theta$ is the probability a response is reflects its actual class label (i.e., $1-\theta$ is the probability of being randomly classified) and $\hat{P}(A)$ is the estimated proportion of observations that were legitimately assigned a positive class label. Solving for $\hat{P}(A)$, we find the estimated proportion of actual positive class labels:
+$$\hat{P}(A) = \frac{P(A) - (1-\theta)\theta}{\theta}$$
+ 
+ We can modify the equation for a Bayes classifier using differential privacy to approximate $P(A|B)$ as follows:
+$$\hat{P}(A|B) = \frac{P(B|A)\hat{P}(A)}{P(B)} = \frac{P(B|A)(P(A)-(1 - \theta)\theta)}{P(B)\theta }$$
+
+### Application
+Testing multiple values of theta --- i.e., the portion of observations randomly assigned a class ---  allows us to guage the potential impact of differential privacy on the performance of a naïve Bayes classifier. This simulation applies differential privacy to the simulated data using a given value of theta, then partions the simulated data into training and testing sets (80%-20%), trains a naïve Bayes classifier on the training data using the modified formula above and finally reports the precision and recall for each iteration. Precision describes how frequently the model identifies *true* positive values. Recall describes how many of model's positive classifications are accurate. Figures 4 and 5 show the results of several iterations for $\theta \in [1,0.6].$ As $\theta$ approaches $0.5$, greater portions of the class labels will be randomized.
+
+```{r, echo=FALSE}
+NB.dp_performance <- function(data, class, theta = 0.90, partition = 0.8){
+  class[sample(1:length(class), (1-theta)*length(class))] <- sample(0:1, (1-theta)*length(class), TRUE)
+  
+  split_index <- sample(1:nrow(data), partition*nrow(data))
+  
+  train <- data[split_index,]
+  train.cl <- class[split_index]
+  
+  test <- data[-split_index,]
+  test.cl <- class[-split_index]
+  
+  # Conditional Probability Table
+  prob_tbl.b <- matrix(NA, 5, 5, dimnames = list(as.character(1:5), paste0("B",1:5)))
+  for(r in 1:5){
+    for(c in 1:ncol(train)){
+      b <- mean(train[,c] == r)
+      prob_tbl.b[r,c] <- b
+    }
+  }
+  
+  prob_tbl.b_if_a <- matrix(NA, 5, 5, dimnames = list(as.character(1:5), paste0("B",1:5)))
+  for(r in 1:5){
+    for(c in 1:ncol(train)){
+      b_if_a <- mean(train[train.cl == 1,c] == r)
+      prob_tbl.b_if_a[r,c] <- b_if_a
+    }
+  }
+  
+  # Prediction Function
+  NB_pred <- function(vec){
+    probs.b_if_a <- NULL
+    probs.b <- NULL
+    for(i in 1:length(vec)){
+      probs.b_if_a[i] <- prob_tbl.b_if_a[vec[i], i]
+      probs.b[i] <- prob_tbl.b[vec[i], i]
+    }
+    
+    out <- prod(probs.b_if_a) * (mean(train.cl) - (1-theta)*theta) / prod(probs.b) / theta
+    out <- ifelse(out > 0.5, 1, 0)
+    
+    return(out)
+  }
+  
+  precision <- sum(apply(test, 1, NB_pred) == 1 & test.cl == 1) / sum(apply(test, 1, NB_pred) == 1)
+  recall <- sum(apply(test, 1, NB_pred) == 1 & test.cl == 1) / (sum(apply(test, 1, NB_pred) == 1 & test.cl == 1) + sum(apply(test, 1, NB_pred) == 0 & test.cl == 1))
+  
+  return(c(precision, recall))
+}
+```
+
+```{r, echo = FALSE}
+perf <- matrix(NA, 0, 2)
+for(theta in seq(1,0.6,-0.01)){
+  perf <- rbind(perf, NB.dp_performance(data, Class, theta))
+}
+
+tibble("Theta" = seq(1,0.6,-0.05), "Precision" = perf[seq(1,nrow(perf),5),1]*100, "Recall" = perf[seq(1,nrow(perf),5),2]*100) %>%
+  kbl(caption = "Impact of Differential Privacy on Precision and Recall", align = "c", digits = 2) %>% 
+  kable_classic(bootstrap_options = "condensed", position = "center")
+```
+
+<center>
+**Fig. 4** Precision and Recall of a Naïve Bayes Classifier (Table).  
+</center><br>
+
+The accuracy of this model does not reflect the results used in Anastasopoulos & Williams' research as the data are entirely simulated. We can see, however, how the addition of privacy measures can weaken a classifier. Precision hovers around 90%--95% roughly until 20% of the data are randomly assigned classes, then begins to drop more significantly. Recall, however, falls much more quickly. By the time 10% of the data are randomly assigned classes, the model is predicting roughly one false negative for every three true positives.  
+
+```{r, echo = FALSE, message=FALSE, fig.width=10,fig.height=6}
+tibble("Theta" = seq(1,0.6,-0.01), "Precision" = perf[,1], "Recall" = perf[,2]) %>%
+  gather(Precision:Recall, key = "Metric", value = "Value") %>%
+  ggplot(aes(Theta, Value, color = Metric)) +
+  geom_line(alpha = 0.3) +
+  geom_line(stat = "smooth") +
+  scale_x_reverse()+
+  
+  labs(title = "Impact of Differential Privacy on Precision and Recall") +
+  
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+<center>
+**Fig. 5** Impact of Differential Privacy on the Precision and Recall of a Naïve Bayes Classifier (Plot).  
+</center><br>
+
+Randomized response differential privacy clearly has an impact on naïve Bayes classification models, though not beyond reason. The next section will consider whether the ethical obligations of researchers make such a decrease in accuracy necessary.
+
+# Analysis of Normative Consideration
+## Harm Principle
+<center>
+"The only purpose for which power can be rightfully exercised over any member of a civilized community, against his will, is to prevent harm to others." --- John Stuart Mill^[John Stuart Mill, *On Liberty* (https://plato.stanford.edu/entries/mill/)]
+</center>
+
+There are two moral questions at play here, each of which can be framed through the harm principle. Outlined above, the harm principle dictates that the only reason to restrict someone's liberty is in order to protect others, as that individual can do harm to them. The first question we must ask is whether the harm caused by  political violence justifies a system which enables the restriction of both violent and *non-violent* protesters' liberty. Second, we must ask whether the potential harm posed by such a system justifies the regulation of academics developing it. I will show that these systems could have a substantial impact on the freedom of speech and assembly, as well as the right to dissent and civil disobedience, and that these systems must be regulated. First and foremost, privacy and informed consent should not be supplemental to science and research but rather foundational.
+
+## On the Rights of Protestors
+What is the purpose of a protest? John Locke believed they followed a "breach of trust" from government by which the latter forfeits power "into [the peoples'] hands... who have a right to resume their original liberty and, by the establishment of a new legislative (such as they shall think fit) provide their own safety and security."^[John Locke, "Second Treatise of Government" in *Classics of Moral and Political Theory* ed. Michael L. Morgan (Indianapolis: Hackett Publishing Company, 2011). 769.] The formation of a new legislative order, however, is more what we would call a revolution than a protest. Jean-Jacques Rousseau argued that those in power will always "make a continual effort against" the public, that it is "the inherent and inevitable vice which, from the birth of the body politic, tends unceasingly to destroy it."^[Jean-Jaques Rousseau, "On the Social Contract" in *Classics of Moral and Political Theory* ed. Michael L. Morgan (Indianapolis: Hackett Publishing Company, 2011). 917.] To Rousseau, regular dissent was a responsibility more than a right --- the only thing which keeps the state from invoking tyranny. I find the most compelling argument, however, one from Jean-Paul Sartre as he reflected on his role in French Resistance during the Second World War:
+
+> "In darkness and in blood, a Republic was established, the strongest of Republics. Each of its citizens knew that he owed himself to all and that he could count only on himself alone. Each of them, in complete isolation, fulfilled his responsibility and his role in history. Each of them, standing against the oppressors, undertook to be himself, freely and irrevocably. And by choosing for himself in liberty, he chose the liberty of all."^[Jean-Paul Sartre, "Paris Alive: The Republic of Silence" in *The Atlantic* (December 1944) https://www.theatlantic.com/magazine/archive/1944/12/paris-alive-the-republic-of-silence/656012/.]
+
+Dissent is to Locke a fundamental right, to Rousseau a duty of citizens and to Sartre the necessary means of self-actualization. No one of these interpretations is more correct than any other, but all suggest not only a *benefit* to protecting the right to dissent but an obligation. It is a crucial part of the democratic process by which political theory, action and progress are crafted and protected. 
+
+Anastasopoulos and Williams argue that there is a utilitarian benefit to the state's ability to quell dissent, and that is certainly true. We can't forget that the primary purpose of this algorithm is to detect *violent* political action. But as a classification model, one can only qualify "violence" in relation to non-violence --- there is no way to employ these systems without granting the state the ability to influence so-called "street politics." I argue that the state's obligation to quell dissent should be *reactive* as opposed to *preventative*. One need look no further than our own history to see how malevolently the state has utilized what surveillance technology they have. Under COINTELPRO, the FBI engaged in a years-long campaign against the Civil Rights Movement; the Nixon administration weaponized covert information-gathering for political maneuvering; more recently, we saw substantial violations of rights under the PATRIOT Act.^[Nicole Turner Lee and Caitlin Chin-Rothman. "Police surveillance and facial recognition: Why data privacy is imperative for communities of color" (Washington, DC: Brookings Insitute, 2022). https://www.brookings.edu/articles/police-surveillance-and-facial-recognition-why-data-privacy-is-an-imperative-for-communities-of-color/] While there is a utilitarian benefit to the state's ability to quell political violence, it has no such compelling interest in altogether *prohibiting* dissent from forming.
+
+There's a deeper problem with the development of surveillance technology, however; one for which we must evoke Bentham's infamous Panopticon. Imagine a prison constructed in which cells wrap around an open courtyard with a large tower in the center. There's a guard in this tower, maybe, but the incarcerated would never know. The tower is backlit such that no one can see *into* the tower, but whoever may be at the top could see clearly into every cell. Michel Foucault's analysis is useful here:
+
+>"Disciplinary power... is exercised through its invisibility; at the same time it imposes on those whom it subjects a principle of compulsory visibility. In discipline, it is the subjects who have to be seen. Their visibility assures the hold of the power that is exercised over them. It is the fact of being constantly seen, of being able always to be seen, that maintains the disciplined individual in his subjection."^[Michel Foucault, *Discipline and Punish* (New York: Pantheon Books, 1977) 201--203.]
+
+The real danger of this system is its ability to change how we think and act. It doesn't matter whether we are always being watched, because we always *feel* as though we are. And in the context of a political protest, that is dangerous. The authors of this paper published a map of individual locations during the Occupy Central protests in Hong Kong --- one can only imagine how valuable that information is to the Chinese Communist Party. The map doesn't portary a solidarity, as is the foundational mechanism behind any popular movement. It shows a disconnected collection of individuals --- data points on a plot. The removal of solidarity alongside anonymity makes popular action impossible.
+
+## On the Obligations of Scholars
+Under a utilitarian framework, the researchers whose paper this project is reviewing have not committed a wrong. These data are publicly available; if they hadn't developed this system, someone else likely would have. The researchers' impact on the world is the same as if they had made no action at all, so it cannot be unethical through utilitarianism. Indeed, on a macroscopic level, the only real solution here is the regulation of social media and a reconsideration of this new mode of production --- "surveillance capitalism" as historian Shoshanna Zuboff calls it: 
+
+> A power that "claims human experience as free raw material for hidden commercial practices of extraction, prediction and sales... The origin of a new instrumentarian power power that asserts dominance over society... that aims to impose a new collective order based on total certainty. An expropriation of critical human rights... a coup from above --- an overthrow of the people's sovereignty."^[Shoshanna Zuboff, *In the Age of Surveillance Capitalism* (New York: PublicAffairs, 2019)]
+
+But that is not to say that the researchers couldn't have done anything more to protect the rights of their subjects. The authors openly acknowledge that subjects either "actively wanted their location tracked or were unaware that their location was being tracked and did not turn location services off," yet they continue to use geographic data without any real concern.^[Anastasopoulos & Williams (2019), 12] This is, by definition, not informed consent. These researchers have instrumentalized people. There was no benefit --- and, in fact, even a potential detriment --- to the people these data describe. They used people as mere means to an end. This paper is fundamentally unethical under a deontological framework.
+
+# Conclusion
+Although the state's ability to monitor political violence and dangerous protests produce a utilitarian benefit, the system Anastasopoulos and Williams propose is fundamentally unethical. First, it stands to inflict significantly more harm to innocent protesters than it could feasibly prevent. Therefore, the liberty of the state and of researchers in this field ought to be restricted to protect the most people. Second, the authors instrumentalize people in the process of creating this system. Finally, the authors do not apply privacy measures where it is possible to do without drastically jeopardizing accuracy, to a certain point. Privacy and informed consent should never be supplemental concerns. We must begin practice responsibility as we preach it. We must incorporate into our models mechanisms to protect people at risk as we create them.
+
+
+
+
+
+
+
+
+
+
